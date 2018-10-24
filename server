@@ -28,6 +28,7 @@ end
   "-config=../ca-config.json",
   "-ca=../ca-cert.pem",
   "-ca-key=../ca-key.pem",
+  "-profile=server",
   "-",
 ]
 
