@@ -40,7 +40,7 @@
 ```
 3. cfssl gencert -initca csr_ROOT_CA.json | cfssljson -bare root_ca
 
-# Create Intermedia CA
+# Create Intermediate CA
 1. mkdir #{ca_dir}
 2. chdir #{ca_dir}
 3. Create ca-csr.json
