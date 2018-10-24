@@ -1,0 +1,71 @@
+#!/usr/bin/env ruby
+
+if ARGV.size < 1
+  STDERR.puts "usage: #{$0} <email address> [username]"
+  exit(1)
+end
+
+require "json"
+
+@pwd = Dir.pwd
+@country = "US"
+@organization = "Omeganetserv"
+if ARGV.size >1 
+  @email = ARGV[0]
+  @common_name = ARGV[1]
+else 
+  @email = ARGV[0]
+  @common_name,domain=@email.split(/@/)
+end
+
+@cfssl=[
+  "/Users/abates/local/bin/cfssl",
+  "gencert",
+  "-config=../ca-config.json",
+  "-ca=../ca-cert.pem",
+  "-ca-key=../ca-key.pem",
+  "-",
+]
+
+if Dir.exist?(@common_name)
+  STDERR.puts "Dir #{@common_name} already exists. Remove it first"
+  exit(2)
+end
+
+Dir.mkdir(@common_name)
+Dir.chdir(@common_name)
+
+output = ""
+IO.popen(@cfssl, "w+") do |p|
+  p.print <<_EOF
+{
+  "CN": "#{@common_name}",
+  "hosts": [""],
+  "key": {
+      "algo": "ecdsa",
+      "size": 256
+  },
+  "names": [
+      {
+          "C":  "#{@country}",
+          "O":  "#{@organization}",
+          "OU": "#{@email}"
+      }
+  ]
+}
+_EOF
+  p.close_write
+  p.each do |out|
+    output += out
+  end
+end
+values = JSON.parse(output)
+
+[["csr", "cert.csr"], ["key", "key.pem"], ["cert", "cert.pem"]].each do |names|
+  File.open(names[1], "w") do |file|
+    file.print values[names[0]]
+  end
+end
+
+Dir.chdir(@pwd)
+

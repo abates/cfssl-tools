@@ -1,0 +1,74 @@
+#!/usr/bin/env ruby
+
+if ARGV.size < 1
+  STDERR.puts "usage: #{$0} <CA Name>"
+  exit(1)
+end
+
+require "json"
+
+@country = "US"
+@location = "Massachusetts"
+@organization = "Omeganetserv"
+@common_name = ARGV[0]
+@expiration = "87600h"
+
+@cfssl=[
+  "/Users/abates/local/bin/cfssl",
+  "gencert",
+  "-initca",
+  "-",
+]
+
+csr = <<_EOF
+{
+  "CN": "#{@common_name}",
+  "key": {
+    "algo": "ecdsa",
+    "size": 256
+  },
+  "names": [
+    {
+      "C": "#{@country}",
+      "L": "#{@location}",
+      "O": "#{@organization}"
+    }
+  ],
+  "ca": {
+    "expiry": "#{@expiration}"
+  }
+}
+_EOF
+
+output = ""
+IO.popen(@cfssl, "w+") do |p|
+  p.write(csr)
+  p.close_write
+  p.each do |out|
+    output += out
+  end
+end
+values = JSON.parse(output)
+
+values["config"] = <<_EOF
+{
+  "signing": {
+    "default": {
+      "expiry": "#{@expiration}",
+      "usages": ["digital signature","cert sign","crl sign","signing"],
+      "ca_constraint": {
+        "is_ca": true,
+        "max_path_len":0,
+        "max_path_len_zero": true
+      }
+    }
+  }
+}
+_EOF
+
+[["cert", "ca-cert.pem"], ["csr", "ca.csr"], ["key", "ca-key.pem"], ["config", "ca-config.json"]].each do |names|
+  File.open(names[1], "w") do |file|
+    file.print values[names[0]]
+  end
+end
+
