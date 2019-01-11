@@ -1,33 +1,23 @@
 #!/usr/bin/env ruby
 
+require "#{File.dirname(__FILE__)}/util.rb"
+
 if ARGV.size < 1
   STDERR.puts "usage: #{$0} <Intermediate CA Name>"
   exit(1)
 end
 
-require "json"
-
 @pwd = Dir.pwd
-@country = "US"
-@location = "Massachusetts"
-@organization = "Omeganetserv"
 @common_name = ARGV[0]
-@expiration = "87600h"
 
-@cfssl_initca=[
-  "/Users/abates/local/bin/cfssl",
-  "gencert",
-  "-initca",
-  "-",
-]
-
-if Dir.exist?(@common_name)
+@ica_dir = "#{@cert_dir}/#{@common_name}"
+if Dir.exist?(@ica_dir)
   STDERR.puts "Dir #{@common_name} already exists. Remove it first"
   exit(2)
 end
 
-Dir.mkdir(@common_name)
-Dir.chdir(@common_name)
+Dir.mkdir(@ica_dir)
+Dir.chdir(@ica_dir)
 
 output = ""
 IO.popen(@cfssl_initca, "w+") do |p|
@@ -56,27 +46,24 @@ _EOF
     output += out
   end
 end
-values = JSON.parse(output)
+cert = JSON.parse(output)
 
-values["config"] = <<_EOF
-{
-  "signing": {
-    "default": {
-      "expiry": "#{@expiration}",
-      "usages": ["digital signature","cert sign","crl sign","signing"],
-      "ca_constraint": {
-        "is_ca": true,
-        "max_path_len":0,
-        "max_path_len_zero": true
-      }
-    }
-  }
-}
-_EOF
+cert["config"] = File.read("#{@cert_dir}/ca-config.json")
+
+output = ""
+IO.popen(@cfssl_sign, "w+") do |p|
+  p.print cert["csr"]
+  p.close_write
+  p.each do |out|
+    output += out
+  end
+end
+values = JSON.parse(output)
+cert["cert"] = values["cert"]
 
 [["csr", "ca.csr"], ["key", "ca-key.pem"], ["cert", "ca-cert.pem"], ["config", "ca-config.json"]].each do |names|
   File.open(names[1], "w") do |file|
-    file.print values[names[0]]
+    file.print cert[names[0]]
   end
 end
 

@@ -1,24 +1,15 @@
 #!/usr/bin/env ruby
 
+require "#{File.dirname(__FILE__)}/util.rb"
+
 if ARGV.size < 1
   STDERR.puts "usage: #{$0} <CA Name>"
   exit(1)
 end
 
-require "json"
+check_no_ca
 
-@country = "US"
-@location = "Massachusetts"
-@organization = "Omeganetserv"
 @common_name = ARGV[0]
-@expiration = "87600h"
-
-@cfssl=[
-  "/Users/abates/local/bin/cfssl",
-  "gencert",
-  "-initca",
-  "-",
-]
 
 csr = <<_EOF
 {
@@ -41,7 +32,7 @@ csr = <<_EOF
 _EOF
 
 output = ""
-IO.popen(@cfssl, "w+") do |p|
+IO.popen(@cfssl_initca, "w+") do |p|
   p.write(csr)
   p.close_write
   p.each do |out|
@@ -54,12 +45,25 @@ values["config"] = <<_EOF
 {
   "signing": {
     "default": {
-      "expiry": "#{@expiration}",
-      "usages": ["digital signature","cert sign","crl sign","signing"],
-      "ca_constraint": {
-        "is_ca": true,
-        "max_path_len":0,
-        "max_path_len_zero": true
+      "expiry": "#{@expiration}"
+    },
+    "profiles": {
+      "server": {
+        "expiry": "#{@expiration}",
+        "usages": ["signing","key encipherment","server auth"]
+      },
+      "client": {
+        "expiry": "#{@expiration}",
+        "usages": ["signing","key encipherment","client auth"]
+      },
+      "intermediate": {
+        "expiry": "#{@expiration}",
+        "usages": ["digital signature","cert sign","crl sign","signing"],
+        "ca_constraint": {
+          "is_ca": true,
+          "max_path_len":0,
+          "max_path_len_zero": true
+        }
       }
     }
   }
@@ -67,7 +71,7 @@ values["config"] = <<_EOF
 _EOF
 
 [["cert", "ca-cert.pem"], ["csr", "ca.csr"], ["key", "ca-key.pem"], ["config", "ca-config.json"]].each do |names|
-  File.open(names[1], "w") do |file|
+  File.open("#{@cert_dir}/#{names[1]}", "w") do |file|
     file.print values[names[0]]
   end
 end

@@ -1,15 +1,14 @@
 #!/usr/bin/env ruby
 
+require "#{File.dirname(__FILE__)}/util.rb"
+require 'fileutils'
+
 if ARGV.size < 1
   STDERR.puts "usage: #{$0} <email address> [username]"
   exit(1)
 end
 
-require "json"
-
 @pwd = Dir.pwd
-@country = "US"
-@organization = "Omeganetserv"
 if ARGV.size >1 
   @email = ARGV[0]
   @common_name = ARGV[1]
@@ -18,25 +17,16 @@ else
   @common_name,domain=@email.split(/@/)
 end
 
-@cfssl=[
-  "/Users/abates/local/bin/cfssl",
-  "gencert",
-  "-config=../ca-config.json",
-  "-ca=../ca-cert.pem",
-  "-ca-key=../ca-key.pem",
-  "-",
-]
-
-if Dir.exist?(@common_name)
-  STDERR.puts "Dir #{@common_name} already exists. Remove it first"
+if Dir.exist?("clients/#{@common_name}")
+  STDERR.puts "Dir clients/#{@common_name} already exists. Remove it first"
   exit(2)
 end
 
-Dir.mkdir(@common_name)
-Dir.chdir(@common_name)
+FileUtils.mkdir_p("clients/#{@common_name}")
+Dir.chdir("clients/#{@common_name}")
 
 output = ""
-IO.popen(@cfssl, "w+") do |p|
+IO.popen(@cfssl_client, "w+") do |p|
   p.print <<_EOF
 {
   "CN": "#{@common_name}",
