@@ -1,8 +1,35 @@
 #!/usr/bin/env ruby
 
 require "#{File.dirname(__FILE__)}/util.rb"
+require "optparse"
+
+options = {
+  algo: "ecdsa",
+  bits: 256,
+}
+
+op = OptionParser.new do |opts|
+  opts.banner = "#{$0} [options] <server fqdn> [alt name] [alt name]..."
+
+  opts.on("-t TYPE","Key Type (ecdsa, rsa, etc)") do |v|
+    options[:algo] = v
+  end
+
+  opts.on("-b BITS","bit length for key") do |v|
+    options[:bits] = v
+  end
+end
+
+begin
+  op.parse!
+rescue => e
+  STDERR.puts "#{e}"
+  STDERR.puts "#{op}"
+  exit(1) 
+end
+
 if ARGV.size < 1
-  STDERR.puts "usage: #{$0} <server fqdn> [alt name] [alt name]..."
+  STDERR.puts "#{op}"
   exit(1)
 end
 
@@ -35,8 +62,8 @@ IO.popen(@cfssl_server, "w+") do |p|
   "CN": "#{@common_name}",
   "hosts": [ #{@hosts.join(",")} ],
   "key": {
-      "algo": "ecdsa",
-      "size": 256
+      "algo": "#{options[:algo]}",
+      "size": #{options[:bits]}
   },
   "names": [
       {
